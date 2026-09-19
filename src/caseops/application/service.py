@@ -7,6 +7,8 @@ from caseops.domain.models import (
     ApprovalDecision,
     AuditEvent,
     ExecutionMode,
+    KnowledgeCandidate,
+    KnowledgeStatus,
     Ticket,
     TicketStatus,
     WorkflowResult,
@@ -119,6 +121,76 @@ class CaseOpsService:
         self._audit(scope, "case.approval", case_id, result.metadata["approval"])
         return result
 
+    def close_case(self, case_id: str, resolution: str, scope: DataScope) -> KnowledgeCandidate:
+        result = self.store.get_result(case_id)
+        case = self.store.get_case(case_id)
+        if case.tenant_id != scope.tenant_id:
+            raise PermissionError("case tenant does not match request tenant")
+        if result.status is not TicketStatus.DISPATCHED:
+            raise ValueError("only a dispatched case can be closed")
+        if not resolution.strip():
+            raise ValueError("resolution must not be empty")
+
+        tickets = tuple(self.store.get_ticket(ticket_id) for ticket_id in case.ticket_ids)
+        for ticket in tickets:
+            scope.assert_ticket(ticket)
+            ticket.touch(TicketStatus.CLOSED)
+        result.status = TicketStatus.CLOSED
+        self.store.save_result(result)
+
+        candidate = KnowledgeCandidate(
+            tenant_id=scope.tenant_id,
+            case_id=case_id,
+            question=tickets[0].subject,
+            answer=resolution.strip(),
+            source_ticket_ids=case.ticket_ids,
+            evidence_ids=tuple(item.document_id for item in result.evidence),
+        )
+        self.store.save_knowledge(candidate)
+        self._audit(
+            scope,
+            "knowledge.candidate_created",
+            candidate.id,
+            {"case_id": case_id, "source_ticket_ids": list(case.ticket_ids)},
+        )
+        return candidate
+
+    def review_knowledge(
+        self,
+        candidate_id: str,
+        *,
+        approved: bool,
+        reviewer_id: str,
+        scope: DataScope,
+        publish: bool = False,
+    ) -> KnowledgeCandidate:
+        candidate = self.store.get_knowledge(candidate_id)
+        if candidate.tenant_id != scope.tenant_id:
+            raise PermissionError("knowledge tenant does not match request tenant")
+        candidate.reviewed_by = reviewer_id
+        candidate.status = KnowledgeStatus.APPROVED if approved else KnowledgeStatus.REJECTED
+        if approved and publish:
+            from caseops.retrieval.hybrid import KnowledgeDocument
+
+            self.retriever.add(
+                KnowledgeDocument(
+                    id=candidate.id,
+                    tenant_id=candidate.tenant_id,
+                    title=candidate.question,
+                    content=candidate.answer,
+                    source_uri=f"caseops://cases/{candidate.case_id}",
+                )
+            )
+            candidate.status = KnowledgeStatus.PUBLISHED
+        self.store.save_knowledge(candidate)
+        self._audit(
+            scope,
+            "knowledge.reviewed",
+            candidate.id,
+            {"approved": approved, "published": candidate.status is KnowledgeStatus.PUBLISHED},
+        )
+        return candidate
+
     def _save_result(self, scope: DataScope, result: WorkflowResult) -> WorkflowResult:
         self.store.save_result(result)
         self._audit(
@@ -153,4 +225,3 @@ def _summary(shared_diagnosis: bool, evidence: tuple) -> str:
     diagnosis = "已合并同源工单进行统一研判" if shared_diagnosis else "已完成单工单研判"
     evidence_note = f"，检索到 {len(evidence)} 条可追溯依据" if evidence else "，未检索到高相关依据"
     return diagnosis + evidence_note + "；后续仍按用户工单独立处置。"
-

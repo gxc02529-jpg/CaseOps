@@ -11,6 +11,7 @@ from caseops.governance.scope import DataScope, ScopeViolation
 from caseops.repositories import InMemoryCaseStore
 from caseops.retrieval import HybridRetriever, KnowledgeDocument
 from caseops.tickets import TicketAggregator
+from caseops.providers import DiagnosisOutput
 
 
 def complete_ticket(**changes) -> Ticket:
@@ -112,6 +113,26 @@ def test_sensitive_action_waits_for_approval() -> None:
     assert approved.dispatched_ticket_ids == (ticket.id,)
 
 
+def test_sensitive_model_action_cannot_bypass_approval() -> None:
+    class RefundDiagnoser:
+        def diagnose(self, _tickets, _evidence) -> DiagnosisOutput:
+            return DiagnosisOutput(
+                summary="建议退款",
+                proposed_action="refund",
+                confidence=0.8,
+                cited_evidence_ids=[],
+            )
+
+    service = build_service()
+    service.diagnoser = RefundDiagnoser()
+    scope = admin_scope()
+    ticket = complete_ticket(tags=())
+    service.intake(ticket, scope)
+    result = service.process(ticket.id, scope)
+    assert result.status is TicketStatus.PENDING_APPROVAL
+    assert result.proposed_action == "refund"
+
+
 def test_closed_case_requires_review_before_publication() -> None:
     service = build_service()
     scope = admin_scope()
@@ -136,4 +157,3 @@ def test_scope_blocks_cross_tenant_intake() -> None:
     service = build_service()
     with pytest.raises(ScopeViolation):
         service.intake(complete_ticket(tenant_id="other"), admin_scope())
-

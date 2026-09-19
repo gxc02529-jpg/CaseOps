@@ -78,7 +78,7 @@ class CaseOpsService:
         query = " ".join(f"{ticket.subject} {ticket.description}" for ticket in tickets)
         evidence = self.retriever.search(query, scope, top_k=5)
         diagnosis = self.diagnoser.diagnose(tickets, evidence)
-        proposal = self.approval_gate.propose(tickets)
+        proposal = self.approval_gate.propose(tickets, model_action=diagnosis.proposed_action)
         approval_required = self.approval_gate.requires_approval(proposal)
         status = TicketStatus.PENDING_APPROVAL if approval_required else TicketStatus.DISPATCHED
         for ticket in tickets:
@@ -226,4 +226,3 @@ def _is_accessible(ticket: Ticket, scope: DataScope) -> bool:
     except PermissionError:
         return False
     return True
-

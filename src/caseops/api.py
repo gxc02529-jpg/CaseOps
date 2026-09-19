@@ -14,6 +14,7 @@ from caseops.governance.approval import ApprovalGate
 from caseops.governance.scope import DataScope
 from caseops.repositories.memory import InMemoryCaseStore
 from caseops.retrieval.hybrid import HybridRetriever
+from caseops.providers.openai_compatible import OpenAICompatibleDiagnoser, RuleBasedDiagnoser
 from caseops.settings import get_settings
 from caseops.tickets.aggregation import TicketAggregator
 
@@ -50,6 +51,15 @@ class KnowledgeReviewRequest(BaseModel):
 
 def _build_service() -> CaseOpsService:
     settings = get_settings()
+    diagnoser = (
+        OpenAICompatibleDiagnoser(
+            base_url=settings.model_base_url,
+            api_key=settings.model_api_key,
+            model=settings.model_name,
+        )
+        if settings.model_api_key
+        else RuleBasedDiagnoser()
+    )
     return CaseOpsService(
         store=InMemoryCaseStore(),
         aggregator=TicketAggregator(
@@ -58,6 +68,7 @@ def _build_service() -> CaseOpsService:
         ),
         retriever=HybridRetriever(),
         approval_gate=ApprovalGate(settings.approval_action_set),
+        diagnoser=diagnoser,
     )
 
 
@@ -182,4 +193,3 @@ app = create_app()
 def run() -> None:
     settings = get_settings()
     uvicorn.run("caseops.api:app", host=settings.api_host, port=settings.api_port, reload=False)
-

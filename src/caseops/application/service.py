@@ -17,6 +17,7 @@ from caseops.governance.approval import ApprovalGate
 from caseops.governance.scope import DataScope
 from caseops.repositories.memory import InMemoryCaseStore
 from caseops.retrieval.hybrid import HybridRetriever
+from caseops.providers.openai_compatible import Diagnoser, RuleBasedDiagnoser
 from caseops.tickets.aggregation import TicketAggregator
 from caseops.workflow.graph import build_routing_graph
 
@@ -30,12 +31,14 @@ class CaseOpsService:
         retriever: HybridRetriever,
         approval_gate: ApprovalGate,
         router: ExecutionRouter | None = None,
+        diagnoser: Diagnoser | None = None,
     ) -> None:
         self.store = store
         self.aggregator = aggregator
         self.retriever = retriever
         self.approval_gate = approval_gate
         self.router = router or ExecutionRouter()
+        self.diagnoser = diagnoser or RuleBasedDiagnoser()
         self.graph = build_routing_graph(self.router)
 
     def intake(self, ticket: Ticket, scope: DataScope) -> Ticket:
@@ -74,6 +77,7 @@ class CaseOpsService:
 
         query = " ".join(f"{ticket.subject} {ticket.description}" for ticket in tickets)
         evidence = self.retriever.search(query, scope, top_k=5)
+        diagnosis = self.diagnoser.diagnose(tickets, evidence)
         proposal = self.approval_gate.propose(tickets)
         approval_required = self.approval_gate.requires_approval(proposal)
         status = TicketStatus.PENDING_APPROVAL if approval_required else TicketStatus.DISPATCHED
@@ -85,7 +89,7 @@ class CaseOpsService:
             mode=mode,
             status=status,
             ticket_ids=case.ticket_ids,
-            summary=_summary(case.shared_diagnosis, evidence),
+            summary=diagnosis.summary,
             evidence=evidence,
             proposed_action=proposal.action,
             approval_required=approval_required,
@@ -95,6 +99,9 @@ class CaseOpsService:
                 "planned_steps": graph_state["planned_steps"],
                 "match_reasons": list(case.match_reasons),
                 "action_reason": proposal.reason,
+                "diagnosis_confidence": diagnosis.confidence,
+                "cited_evidence_ids": diagnosis.cited_evidence_ids,
+                "model_proposed_action": diagnosis.proposed_action,
             },
         )
         return self._save_result(scope, result)
@@ -220,8 +227,3 @@ def _is_accessible(ticket: Ticket, scope: DataScope) -> bool:
         return False
     return True
 
-
-def _summary(shared_diagnosis: bool, evidence: tuple) -> str:
-    diagnosis = "已合并同源工单进行统一研判" if shared_diagnosis else "已完成单工单研判"
-    evidence_note = f"，检索到 {len(evidence)} 条可追溯依据" if evidence else "，未检索到高相关依据"
-    return diagnosis + evidence_note + "；后续仍按用户工单独立处置。"

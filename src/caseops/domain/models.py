@@ -129,6 +129,7 @@ class KnowledgeCandidate:
     answer: str
     source_ticket_ids: tuple[str, ...]
     evidence_ids: tuple[str, ...] = ()
+    order_scope: tuple[str, ...] = ()
     id: str = field(default_factory=lambda: f"kb_{uuid4().hex[:12]}")
     status: KnowledgeStatus = KnowledgeStatus.CANDIDATE
     created_at: datetime = field(default_factory=utc_now)

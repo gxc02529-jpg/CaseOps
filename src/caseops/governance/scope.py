@@ -33,7 +33,14 @@ class DataScope:
             return True
         if not self.order_scope:
             return False
-        return bool(set(self.order_scope).intersection(entity_scope))
+        # An entity that spans multiple orders is accessible only when the actor
+        # is authorized for every order.  An overlap check would allow a mixed
+        # authorized/unauthorized scope to cross the boundary as one object.
+        return set(entity_scope).issubset(self.order_scope)
+
+    def assert_privileged(self) -> None:
+        if not self.is_privileged:
+            raise ScopeViolation("operation requires tenant_admin or security_reviewer")
 
     def assert_ticket(self, ticket: Ticket) -> None:
         if ticket.tenant_id != self.tenant_id:

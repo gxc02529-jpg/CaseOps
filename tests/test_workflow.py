@@ -108,7 +108,7 @@ def test_sensitive_action_waits_for_approval() -> None:
     result = service.process(ticket.id, scope)
     assert result.status is TicketStatus.PENDING_APPROVAL
     assert result.dispatched_ticket_ids == ()
-    approved = service.approve(result.case_id, ApprovalDecision(True, "lead-1"), scope)
+    approved = service.approve(result.case_id, ApprovalDecision(True, scope.actor_id), scope)
     assert approved.status is TicketStatus.DISPATCHED
     assert approved.dispatched_ticket_ids == (ticket.id,)
 
@@ -144,13 +144,47 @@ def test_closed_case_requires_review_before_publication() -> None:
     reviewed = service.review_knowledge(
         candidate.id,
         approved=True,
-        reviewer_id="reviewer-1",
+        reviewer_id=scope.actor_id,
         scope=scope,
         publish=True,
     )
     assert reviewed.status is KnowledgeStatus.PUBLISHED
+    assert reviewed.order_scope == ("order-1",)
     hits = service.retriever.search("清理缓存", scope)
     assert candidate.id in {item.document_id for item in hits}
+
+
+def test_non_privileged_actor_cannot_approve_or_publish() -> None:
+    service = build_service()
+    admin = admin_scope()
+    ticket = complete_ticket(tags=("refund_request",))
+    service.intake(ticket, admin)
+    result = service.process(ticket.id, admin)
+    agent = DataScope("acme", "agent-2", order_scope=("order-1",), roles=("support_agent",))
+    with pytest.raises(ScopeViolation):
+        service.approve(result.case_id, ApprovalDecision(True, agent.actor_id), agent)
+
+
+def test_entity_scope_requires_all_orders_and_published_knowledge_keeps_scope() -> None:
+    service = build_service()
+    limited = DataScope("acme", "agent-1", order_scope=("order-1",), roles=("support_agent",))
+    with pytest.raises(ScopeViolation):
+        service.intake(complete_ticket(order_scope=("order-1", "order-2")), limited)
+
+    admin = admin_scope()
+    ticket = complete_ticket(tags=("known_issue",))
+    service.intake(ticket, admin)
+    result = service.process(ticket.id, admin)
+    candidate = service.close_case(result.case_id, "仅限订单范围的解决方案", admin)
+    service.review_knowledge(
+        candidate.id,
+        approved=True,
+        reviewer_id=admin.actor_id,
+        scope=admin,
+        publish=True,
+    )
+    outside = DataScope("acme", "agent-3", order_scope=("order-2",), roles=("support_agent",))
+    assert service.retriever.search("解决方案", outside) == ()
 
 
 def test_scope_blocks_cross_tenant_intake() -> None:

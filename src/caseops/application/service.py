@@ -107,10 +107,16 @@ class CaseOpsService:
         return self._save_result(scope, result)
 
     def approve(self, case_id: str, decision: ApprovalDecision, scope: DataScope) -> WorkflowResult:
+        scope.assert_privileged()
         result = self.store.get_result(case_id)
         case = self.store.get_case(case_id)
         if case.tenant_id != scope.tenant_id:
             raise PermissionError("case tenant does not match request tenant")
+        tickets = tuple(self.store.get_ticket(ticket_id) for ticket_id in result.ticket_ids)
+        for ticket in tickets:
+            scope.assert_ticket(ticket)
+        if decision.reviewer_id != scope.actor_id:
+            raise PermissionError("approval reviewer must match request actor")
         if not result.approval_required:
             raise ValueError("case does not require approval")
 
@@ -152,6 +158,7 @@ class CaseOpsService:
             answer=resolution.strip(),
             source_ticket_ids=case.ticket_ids,
             evidence_ids=tuple(item.document_id for item in result.evidence),
+            order_scope=tuple(sorted({order_id for ticket in tickets for order_id in ticket.order_scope})),
         )
         self.store.save_knowledge(candidate)
         self._audit(
@@ -171,9 +178,14 @@ class CaseOpsService:
         scope: DataScope,
         publish: bool = False,
     ) -> KnowledgeCandidate:
+        scope.assert_privileged()
         candidate = self.store.get_knowledge(candidate_id)
         if candidate.tenant_id != scope.tenant_id:
             raise PermissionError("knowledge tenant does not match request tenant")
+        if not scope.allows_order_scope(candidate.order_scope):
+            raise PermissionError("knowledge is outside the actor's order scope")
+        if reviewer_id != scope.actor_id:
+            raise PermissionError("knowledge reviewer must match request actor")
         candidate.reviewed_by = reviewer_id
         candidate.status = KnowledgeStatus.APPROVED if approved else KnowledgeStatus.REJECTED
         if approved and publish:
@@ -185,6 +197,7 @@ class CaseOpsService:
                     tenant_id=candidate.tenant_id,
                     title=candidate.question,
                     content=candidate.answer,
+                    order_scope=candidate.order_scope,
                     source_uri=f"caseops://cases/{candidate.case_id}",
                 )
             )

@@ -1,16 +1,16 @@
-# CaseOps 代码复用与业务改造说明
+# CaseOps 平台复用与行业适配说明
 
-本项目采用“复用稳定模式、重写业务语义”的方式补齐源码。这样可以解释现有 RAG 与 Agent 代码如何演进为工单系统，同时避免把物流问答或旅游 Agent 直接改名后伪装成新业务。
+本项目采用“统一交付底座 + 行业模块”的方式实现：复用稳定的治理、检索和编排接口，重新设计 SaaS 工单领域模型、状态流转与权限规则。公开仓库只呈现脱敏参考实现，不包含客户源码和生产数据。
 
 ## 复用判断
 
-| 来源 | 复用内容 | CaseOps 落点 | 改造原因 |
+| 平台能力 | 复用内容 | CaseOps 落点 | 行业适配原因 |
 | --- | --- | --- | --- |
 | KnowForge `qa_core/governance/data_scope.py` | 不可变数据域、租户过滤、检索边界 | `governance/scope.py` | 工单还需要订单范围与审批角色，不能照搬知识库 dataset 语义 |
 | KnowForge `qa_core/retrieval/ranking.py` | 候选去重、分数排序、reranker 注入 | `retrieval/hybrid.py` | 保留纯逻辑可测试性，替换为工单证据实体与订单范围过滤 |
 | KnowForge `qa_core/pipeline/citations.py` | 答案必须带可追溯依据 | `providers/openai_compatible.py` | 结构化输出只允许引用本轮已检索 evidence ID |
-| Agent 示例 `03-agent/05multi_agent.py` | 专业节点分工与结果汇总 | `workflow/graph.py` | 从演示式并行 Agent 改成可审计的条件状态机 |
-| A2A 串行示例 | 明确任务状态和节点顺序 | `application/service.py` | 工单需要失败可定位、审批可暂停、每个用户独立派单 |
+| Agent 编排底座 | 专业节点分工与结果汇总 | `workflow/graph.py` | 工单需要可审计的条件状态机 |
+| 顺序任务协议 | 明确任务状态和节点顺序 | `application/service.py` | 工单需要失败可定位、审批可暂停、每个用户独立派单 |
 
 ## 新写的业务能力
 

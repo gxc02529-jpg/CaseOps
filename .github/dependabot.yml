@@ -1,14 +1,19 @@
 version: 2
 updates:
+  # 只把 minor/patch 打包成一个 PR：风险低、可一次性验证。
+  # major 升级刻意不分组，逐个提 PR，强制走一次显式迁移评审。
   - package-ecosystem: pip
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      python-dependencies:
+      python-minor-patch:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: "/"

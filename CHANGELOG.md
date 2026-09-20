@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dependabot now groups only Python minor and patch updates. Major version
+  bumps arrive as individual pull requests so each migration gets its own
+  review instead of being buried in an unreviewable batch.
+- Bumped `actions/checkout` to v7 and `actions/setup-python` to v7.
+
 ### Added
 
 - MIT license, `.editorconfig`, and Dependabot configuration.

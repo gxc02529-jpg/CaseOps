@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- MIT license, `.editorconfig`, and Dependabot configuration.
+- Contributing guide, changelog, and GitHub issue / pull request templates.
+
 ### Changed
 
 - Dependabot now groups only Python minor and patch updates. Major version
@@ -14,12 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   review instead of being buried in an unreviewable batch.
 - Bumped `actions/checkout` to v7 and `actions/setup-python` to v7.
 
-### Added
-
-- MIT license, `.editorconfig`, and Dependabot configuration.
-- Contributing guide, changelog, and GitHub issue / pull request templates.
-
-### Changed
 
 - CI now cancels superseded runs before starting a new one, and byte-compiles
   sources before running the tests.

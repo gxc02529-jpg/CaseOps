@@ -1,5 +1,10 @@
 # CaseOps
 
+![CI](https://github.com/gxc02529-jpg/GA/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+
+
 CaseOps 是企业智能化解决方案团队基于统一 RAG + Agent 交付底座，为 SaaS 技术支持场景完成的脱敏参考实现。它把工单接入、同源聚合、信息补齐、证据检索、人工审批、独立处置和知识回流组织为一条可测试的闭环。
 
 仓库默认使用内存存储和可重复的离线研判器，因此无需模型或数据库也能运行测试。配置 `CASEOPS_MODEL_API_KEY` 后会切换到 DeepSeek 或其他 OpenAI 兼容模型；PostgreSQL、Redis 与 Milvus 的生产适配边界已经在配置、数据域过滤、数据库 schema 和 Compose 中保留，但当前示例没有假装已经完成全部基础设施接线。
@@ -121,3 +126,7 @@ $env:PYTHONPATH = "$PWD\src"
 pytest -q
 python -m compileall -q src
 ```
+
+## 许可协议
+
+本项目基于 [MIT License](LICENSE) 发布，版权归 gxc02529-jpg 所有。

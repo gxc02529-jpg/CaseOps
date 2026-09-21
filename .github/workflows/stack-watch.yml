@@ -1,0 +1,67 @@
+name: Stack watch
+
+# 每日依赖风险巡检：把「声明下界仍落在已知受影响区间」的包挑出来。
+# 判定口径与设计取舍见 scripts/security/stack_watch.py 的模块 docstring。
+#
+# 关于 cron 时间：GitHub 的贡献图按 UTC 判定日期，所以固定在一个 UTC 日内部的
+# 单点时刻（01:30 UTC = 09:30 北京时间），保证每天恰好落进一个格子。Actions 的
+# schedule 在整点高峰会有数分钟到数十分钟延迟，01:30 离日界足够远，不受影响。
+#
+# 关于提交身份：提交能否计入贡献图，只取决于 commit 的 author email 是否关联到
+# 账号 —— 与用 GITHUB_TOKEN 还是 PAT 无关。详见下方那一步的注释。
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stack-watch
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 关键一步。GitHub 判定贡献归属只看 commit 的 author email，因此必须把它
+      # 设成「已关联到账号的邮箱」，否则整条流水线跑得再勤也不会点亮任何格子
+      # （多数现成的 auto-commit 项目就栽在这里：它们把邮箱设成了
+      #  github-actions[bot]@users.noreply.github.com）。
+      # 这里与仓库既有提交保持一致。
+      - name: Attribute commits to the repository owner
+        run: |
+          git config user.name "gxc02529-jpg"
+          git config user.email "gxc02529-jpg@users.noreply.github.com"
+
+      - name: Generate daily dependency risk report
+        run: |
+          python scripts/security/stack_watch.py \
+            --repo-name "CaseOps" \
+            --out-dir reports/stack-watch
+
+      - name: Show report head
+        run: head -n 40 reports/stack-watch/*.md || true
+
+      # 报告内容包含生成时间与逐日历史，正常情况下每天都有实质变化；
+      # 若确实无变化则跳过，不制造空提交。
+      - name: Commit and push
+        run: |
+          git add reports/stack-watch
+          if git diff --cached --quiet; then
+            echo "报告内容无变化，跳过提交"
+            exit 0
+          fi
+          git commit -m "chore(stack-watch): daily dependency risk report [skip ci]"
+          git push

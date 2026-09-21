@@ -49,16 +49,23 @@ jobs:
         run: |
           python scripts/security/stack_watch.py \
             --repo-name "CaseOps" \
-            --out-dir reports/stack-watch
+            --out-dir ops/stack-watch
 
       - name: Show report head
-        run: head -n 40 reports/stack-watch/*.md || true
+        run: head -n 40 ops/stack-watch/*.md || true
 
       # 报告内容包含生成时间与逐日历史，正常情况下每天都有实质变化；
       # 若确实无变化则跳过，不制造空提交。
+      #
+      # 注意：输出目录**不能落在 .gitignore 覆盖的路径下**。KnowLoop 的
+      # .gitignore 忽略了 `reports/`（归类为"运行产物"），最初用
+      # `reports/stack-watch` 时 git add 直接以 exit 1 失败。
+      # git 不允许在父目录被排除后重新纳入其子文件，所以只能换目录，
+      # 不能用 `!reports/stack-watch/` 反选，也不该用 `git add -f` 硬顶
+      # 仓库自己的约定。
       - name: Commit and push
         run: |
-          git add reports/stack-watch
+          git add ops/stack-watch
           if git diff --cached --quiet; then
             echo "报告内容无变化，跳过提交"
             exit 0

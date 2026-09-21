@@ -42,3 +42,33 @@ jobs:
         run: python -m pytest -q --cov=caseops --cov-report=term-missing
         env:
           PYTHONPATH: src
+
+  # 依赖用区间约束（>=x,<y），区间没有唯一解 —— 有安全意义的是 pip 实际解析出的版本。
+  # 因此这里先解析再审计，而不是直接扫 pyproject 里的下界。
+  # 审计结果先只报告不卡口；基线清零后再改硬卡口。
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Resolve declared dependencies
+        run: |
+          python scripts/security/dependency_audit.py --emit-deps > "$RUNNER_TEMP/deps.txt"
+          echo "declared dependency specs:"
+          cat "$RUNNER_TEMP/deps.txt"
+          python -m pip install --dry-run --ignore-installed \
+            --report "$RUNNER_TEMP/pip-report.json" -r "$RUNNER_TEMP/deps.txt"
+
+      - name: Audit resolved versions against OSV
+        continue-on-error: true
+        run: python scripts/security/dependency_audit.py --from-report "$RUNNER_TEMP/pip-report.json"

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-21
+
 ### Added
 
 - MIT license, `.editorconfig`, and Dependabot configuration.
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped `actions/checkout` to v7 and `actions/setup-python` to v7.
 - CI now cancels superseded runs before starting a new one, and byte-compiles
   sources before running the tests.
-- Coverage is reported on the Python test matrix (CaseOps).
+- Coverage is reported on the Python test matrix.
 
 ## [0.1.0] - 2026-09-19
 

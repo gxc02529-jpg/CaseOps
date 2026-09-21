@@ -1,6 +1,6 @@
 # CaseOps
 
-![CI](https://github.com/gxc02529-jpg/GA/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/gxc02529-jpg/CaseOps/actions/workflows/ci.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 
@@ -48,7 +48,8 @@ flowchart LR
 ## 快速开始
 
 ```powershell
-cd D:\Agent\04_代码\CaseOps
+git clone https://github.com/gxc02529-jpg/CaseOps.git
+cd CaseOps
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"

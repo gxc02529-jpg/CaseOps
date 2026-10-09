@@ -2,8 +2,8 @@
  "repo": "CaseOps",
  "manifest": "pyproject.toml（含 2 组 extras）",
  "manifest_path": "pyproject.toml",
- "date": "2026-10-08",
- "generated_at": "2026-10-08T07:35:36Z",
+ "date": "2026-10-09",
+ "generated_at": "2026-10-09T07:32:04Z",
  "packages_total": 12,
  "audit_ok": true,
  "findings": [],
@@ -165,6 +165,15 @@
   },
   {
    "date": "2026-10-08",
+   "packages": 12,
+   "affected": 0,
+   "high": 0,
+   "drift": 0,
+   "finding_ids": [],
+   "audit_ok": true
+  },
+  {
+   "date": "2026-10-09",
    "packages": 12,
    "affected": 0,
    "high": 0,
